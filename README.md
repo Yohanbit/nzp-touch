@@ -24,7 +24,7 @@ Apuntar, disparar, interactuar y otras acciones incompatibles cancelan la carrer
 
 En **Ajustes** puedes cambiar la sensibilidad normal y con mira, el tamaño y la opacidad de los botones, activar la distribución para zurdos, mostrar nombres, habilitar vibración y mover los botones. La configuración se guarda en el navegador cuando está disponible.
 
-El HUD original sigue mostrando la munición, los puntos y el estado de la partida. La interfaz no inventa esos valores.
+El HUD original sigue mostrando la munición, los puntos y el estado de la partida.
 
 ## Estado y rendimiento
 
