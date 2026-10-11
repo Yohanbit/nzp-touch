@@ -1,43 +1,57 @@
-# NZP Touch Field Kit
+# NZP · Controles táctiles
 
-Experimental, unofficial mobile touch interface for **Nazi Zombies: Portable**, by NZ:P Team. This repository is a fork of the official web host, not a new game and not an official release.
+Interfaz táctil experimental y no oficial para **Nazi Zombies: Portable**, de **NZ:P Team**. Este repositorio es una copia derivada del alojamiento web original; no es un juego nuevo ni una publicación oficial.
 
-## Play
+## Jugar
 
-https://yohanbit.github.io/nzp-touch/
+**https://yohanbit.github.io/nzp-touch/**
 
-Open in Chrome on Android, preferably in landscape. The game loads automatically, without a landing page. Navigate the original menus using touch or the arrow buttons and **✓**. Initial loading downloads roughly 100 MB. The browser requires a real touch before sound can start.
+Abre el enlace en un navegador compatible, preferiblemente con el dispositivo en horizontal. El juego carga automáticamente. La primera carga descarga aproximadamente 100 MB; el sonido puede requerir un primer toque en la pantalla.
 
-## Controls
+Los menús originales se manejan por toque o con las flechas y **✓**. Para volver entre submenús, utiliza la opción **BACK** del juego.
 
-Analog left stick, right-side drag to look, hold-and-drag fire button, aim, reload, use/buy/repair, jump, stance, weapon switching, melee and hold/release grenade. Includes original-menu navigation and manual text entry. The existing game HUD remains authoritative; the interface does not fabricate perk, ammo or score values.
+## Controles
 
-**v2:** minimal icon-only controls inspired by the supplied mobile-control reference; no separate sprint button. Push the joystick fully forward to request sprint, ease back or aim to stop. Sideways/backward motion does not activate sprint. Includes a short forward-input delay before the original sprint impulse, avoiding an input-order race.
+- **Joystick izquierdo:** movimiento analógico. Llévalo arriba del todo un instante para bloquear el avance y solicitar carrera; puedes soltar el dedo. Tócalo de nuevo para detenerte o retomar el control manual.
+- **Zona derecha:** desliza para mirar.
+- **Disparo:** mantén pulsado; arrastra sobre el mismo botón para mirar mientras disparas.
+- **Mira:** activación por toque o pulsación mantenida, según los ajustes.
+- **Mano:** mantén para interactuar, comprar, reparar o abrir según el contexto.
+- **Granada:** mantén para preparar y suelta para lanzar.
+- Botones de recarga, salto, postura, cambio de arma y ataque cuerpo a cuerpo.
 
-Settings: look and aim sensitivity, button size and opacity, left-handed layout, optional button labels and haptics, and movable buttons. Settings are stored locally where supported. v2 uses its own layout storage key so v1 button coordinates do not distort the new default arrangement.
+Apuntar, disparar, interactuar y otras acciones incompatibles cancelan la carrera automática. Abrir el menú, perder el foco o cancelar un toque también libera las entradas. Se conservan la resistencia y las restricciones de carrera del juego original.
 
-Fullscreen/windowed sizing is synchronized to the actual viewport and drawing buffer, including rotation and visual-viewport changes, rather than fitting to stale Android screen dimensions.
+En **Ajustes** puedes cambiar la sensibilidad normal y con mira, el tamaño y la opacidad de los botones, activar la distribución para zurdos, mostrar nombres, habilitar vibración y mover los botones. La configuración se guarda en el navegador cuando está disponible.
 
-## Status
+El HUD original sigue mostrando la munición, los puntos y el estado de la partida. La interfaz no inventa esos valores.
 
-The v2 local client passed 41 automated Chromium checks, including automatic engine/map startup via the original menus, simultaneous touch inputs, sprint input conditions, action-command mapping, control configuration, fullscreen entry/exit and orientation resizing. These checks do not certify every gameplay outcome or actual sprint speed. POCO M5s performance and cooperative connectivity have not been verified for this modified client. Public deployment is tested separately.
+## Estado y rendimiento
 
-## Attribution and licenses
+La versión 3 sincroniza el renderizado con la pantalla y ajusta el lienzo al espacio disponible, incluida la rotación y la pantalla completa. Los archivos originales del motor, los mapas, las texturas y los paquetes del juego permanecen sin modificar.
 
-Original game and assets: **NZ:P Team and credited contributors**. The engine, gameplay, maps and assets are not authored by the touch-interface developer.
+La versión 3 pasó 30 comprobaciones automatizadas en Chromium, tanto localmente como desde el enlace público: arranque del motor y del mapa mediante los menús, carrera bloqueada, cancelaciones, entradas táctiles, sincronización y dimensiones del lienzo.
 
-- Official web host, with the precompiled engine and game packages: https://github.com/nzp-team/nzp-team.github.io
-- Engine source: https://github.com/nzp-team/fteqw
-- Gameplay source: https://github.com/nzp-team/quakec
-- Asset source and licensing: https://github.com/nzp-team/assets
-- Documentation: https://docs.nzp.gay/
+Estas pruebas **no garantizan una tasa concreta de FPS, la ausencia de errores gráficos en todos los dispositivos ni cada resultado del gameplay**. El rendimiento depende del navegador y del dispositivo. El cooperativo de esta versión todavía no se ha verificado.
 
-See `licenses/attributions.txt`, `licenses/fteqw-gpl.txt`, `licenses/gpl-2.0.txt` and `licenses/cc-by-sa-4.0.txt` for included notices. Individual asset licenses remain applicable. Original notices inside the game packages are preserved.
+## Créditos y licencias
 
-The added HTML/CSS/JavaScript touch interface is licensed under GPL-2.0-or-later, without warranty. Sources are `index.html`, `touch.css` and `touch.js` in this repository.
+Juego y recursos originales: **NZ:P Team y sus colaboradores acreditados**. El motor, la lógica del juego, los mapas y los recursos no fueron creados por el desarrollador de esta interfaz táctil.
 
-Engine and gameplay binaries are inherited unmodified from the official web host; they were not rebuilt for this interface. Engine source consulted during development: `f68a2b547d2dc4bf6886b922baa1bff487cc5038`; gameplay source consulted: `8a77f1ce45f1a2b9aa0afb301446954fda40e696`. Those consulted revisions have not been certified as the exact corresponding sources of every upstream binary. This remains an upstream source-provenance limitation, not a claim of a reproducible build.
+- [Alojamiento web original y binarios precompilados](https://github.com/nzp-team/nzp-team.github.io)
+- [Código del motor](https://github.com/nzp-team/fteqw)
+- [Código de la lógica del juego](https://github.com/nzp-team/quakec)
+- [Recursos y sus licencias](https://github.com/nzp-team/assets)
+- [Documentación](https://docs.nzp.gay/)
 
-## Hosting
+Los avisos incluidos se encuentran en `licenses/attributions.txt`, `licenses/fteqw-gpl.txt`, `licenses/gpl-2.0.txt` y `licenses/cc-by-sa-4.0.txt`. Se mantienen los avisos originales dentro de los paquetes y las licencias particulares de cada recurso.
 
-Static HTTPS hosting with WebAssembly support. Keep the engine and `nzp/` package paths intact. GitHub Pages serves the client; it does not provide a cooperative game server.
+La interfaz añadida —`index.html`, `touch.css` y `touch.js`— se distribuye bajo **GPL-2.0-or-later**, sin garantía.
+
+Los binarios del motor y del juego se heredan sin modificar del alojamiento oficial; no se recompilaron para esta interfaz. Las revisiones consultadas fueron `f68a2b547d2dc4bf6886b922baa1bff487cc5038` para el motor y `8a77f1ce45f1a2b9aa0afb301446954fda40e696` para la lógica del juego. No se ha certificado que sean las fuentes correspondientes exactas de todos los binarios heredados ni que permitan una compilación reproducible de ellos.
+
+## Alojamiento
+
+Requiere alojamiento estático HTTPS compatible con WebAssembly. Deben conservarse las rutas del motor y los paquetes de `nzp/`.
+
+**GitHub Pages publica el cliente web; no proporciona un servidor cooperativo.**
