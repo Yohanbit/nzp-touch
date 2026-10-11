@@ -36,7 +36,7 @@ Estas pruebas **no garantizan una tasa concreta de FPS, la ausencia de errores g
 
 ## Créditos y licencias
 
-Juego y recursos originales: **NZ:P Team y sus colaboradores acreditados**. El motor, la lógica del juego, los mapas y los recursos no fueron creados por el desarrollador de esta interfaz táctil.
+Juego y recursos originales: **NZ:P Team y sus colaboradores acreditados**.
 
 - [Alojamiento web original y binarios precompilados](https://github.com/nzp-team/nzp-team.github.io)
 - [Código del motor](https://github.com/nzp-team/fteqw)
@@ -44,14 +44,14 @@ Juego y recursos originales: **NZ:P Team y sus colaboradores acreditados**. El m
 - [Recursos y sus licencias](https://github.com/nzp-team/assets)
 - [Documentación](https://docs.nzp.gay/)
 
-Los avisos incluidos se encuentran en `licenses/attributions.txt`, `licenses/fteqw-gpl.txt`, `licenses/gpl-2.0.txt` y `licenses/cc-by-sa-4.0.txt`. Se mantienen los avisos originales dentro de los paquetes y las licencias particulares de cada recurso.
+Los avisos incluidos se encuentran en `licenses/attributions.txt`, `licenses/fteqw-gpl.txt`, `licenses/gpl-2.0.txt` y `licenses/cc-by-sa-4.0.txt`.
 
-La interfaz añadida —`index.html`, `touch.css` y `touch.js`— se distribuye bajo **GPL-2.0-or-later**, sin garantía.
+La interfaz añadida —`index.html`, `touch.css` y `touch.js`— se distribuye bajo **GPL-2.0-or-later**.
 
-Los binarios del motor y del juego se heredan sin modificar del alojamiento oficial; no se recompilaron para esta interfaz. Las revisiones consultadas fueron `f68a2b547d2dc4bf6886b922baa1bff487cc5038` para el motor y `8a77f1ce45f1a2b9aa0afb301446954fda40e696` para la lógica del juego. No se ha certificado que sean las fuentes correspondientes exactas de todos los binarios heredados ni que permitan una compilación reproducible de ellos.
+Los binarios del motor y del juego se heredan sin modificar del alojamiento oficial; no se recompilaron para esta interfaz. Las revisiones consultadas fueron `f68a2b547d2dc4bf6886b922baa1bff487cc5038` para el motor y `8a77f1ce45f1a2b9aa0afb301446954fda40e696` para la lógica del juego.
 
 ## Alojamiento
 
 Requiere alojamiento estático HTTPS compatible con WebAssembly. Deben conservarse las rutas del motor y los paquetes de `nzp/`.
 
-**GitHub Pages publica el cliente web; no proporciona un servidor cooperativo.**
+**GitHub Pages publica el cliente web;
