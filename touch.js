@@ -20,7 +20,7 @@
     }
   } catch { canSave = false; }
 
-  const state = {version:'2.0.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,axes:[0,0],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.0.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
@@ -60,10 +60,15 @@
     if(sprintOwner!==null){command('impulse 24');sprintOwner=null;}
     visual('sprint',false);
   }
+  function cancelAutoRun() {
+    state.autoRun=false;$('stick').classList.remove('locked');
+    stopSprint();
+    if(!move){state.axes=[0,0];axis(0,0);axis(1,0);lastAxes=[0,0];$('knob').style.transform='translate(0px,0px)';}
+  }
   function updateSprint() {
     const forward=-state.axes[1],side=Math.abs(state.axes[0]);
-    const permitted=isPlaying()&&!state.ads&&move!==null;
-    if(!permitted||forward<.80||side>.45){stopSprint();return;}
+    const permitted=isPlaying()&&!state.ads&&(move!==null||state.autoRun);
+    if(!permitted||forward<.80||side>.45){cancelAutoRun();return;}
     if(forward<.92||side>.38||sprintOwner!==null||sprintTimer!==null)return;
     // Commit analog movement before requesting sprint. NZP rejects impulse 23
     // when it has not yet received a forward usercmd. A short delay avoids that race.
@@ -71,6 +76,7 @@
     sprintTimer=setTimeout(()=>{
       sprintTimer=null;
       if(isPlaying()&&!state.ads&&move&&-state.axes[1]>=.92&&Math.abs(state.axes[0])<=.38){
+        state.autoRun=true;$('stick').classList.add('locked');
         sprintOwner='auto';command('impulse 23');visual('sprint',true);
       }
     },120);
@@ -86,13 +92,13 @@
     visual(action,owners.size>0);
     if(action==='ads'){
       state.ads=owners.size>0;
-      if(state.ads)stopSprint();else updateSprint();
+      if(state.ads)cancelAutoRun();else updateSprint();
     }
   }
   let pulseId = 0;
   function pulse(action) { const id='pulse-'+(++pulseId); hold(action,id,true); setTimeout(()=>hold(action,id,false),100); }
   function releaseAll() {
-    stopSprint();
+    cancelAutoRun();
     if(menuPointer!==null&&engine())getWasmTableEntry(FTEC.evcb.button)(0,0,0);
     menuPointer=null;
     for(const [action,owners] of held) if(owners.size) { command(`-${holdCommands[action]} ${actionIds[action]}`); owners.clear(); visual(action,false); }
@@ -146,6 +152,7 @@
       if(state.editing) { editPointer={id:e.pointerId,button}; button.classList.add('active'); return; }
       if(!isPlaying())return;
       const action=button.dataset.action; pointers.set(e.pointerId,{action,x:e.clientX,y:e.clientY}); vibrate();
+      if(['fire','crouch','melee','reload','weapon','use','grenade'].includes(action))cancelAutoRun();
       if(action==='ads'&&cfg.toggleAds) {
         adsLatch=!adsLatch;hold('ads','latch',adsLatch);button.classList.toggle('latched',adsLatch);
       } else if(action==='jump')command('impulse 10');
@@ -195,12 +202,20 @@
   }
   $('move-zone').addEventListener('pointerdown',e=>{
     stopEvent(e);if(!isPlaying()||move||e.button!==0)return;capture($('move-zone'),e);
+    // Touching the joystick takes manual control, even after releasing a locked run.
+    cancelAutoRun();
     const zone=$('move-zone').getBoundingClientRect(),pad=58*cfg.scale;
     const x=Math.max(zone.left+pad,Math.min(zone.right-pad,e.clientX)),y=Math.max(zone.top+pad,Math.min(zone.bottom-pad,e.clientY));
     move={id:e.pointerId,x,y};$('stick').style.left=(x-zone.left)+'px';$('stick').style.top=(y-zone.top)+'px';updateMove(e);
   });
   $('move-zone').addEventListener('pointermove',e=>{stopEvent(e);updateMove(e);});
-  const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){move=null;state.axes=[0,0];axis(0,0);axis(1,0);lastAxes=[0,0];stopSprint();$('knob').style.transform='translate(0px,0px)';resetStick();}};
+  const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){
+    move=null;
+    if(e.type==='pointerup'&&state.autoRun&&isPlaying()&&!state.ads){
+      state.axes=[0,-1];axis(0,0);axis(1,-1);lastAxes=[0,-1];resetStick();
+      $('knob').style.transform=`translate(0px,${-52*cfg.scale}px)`;
+    }else{cancelAutoRun();resetStick();}
+  }};
   for(const event of ['pointerup','pointercancel','lostpointercapture'])$('move-zone').addEventListener(event,endMove);
 
   function menuPosition(e) {
@@ -310,7 +325,10 @@
     if(state.settings||state.texting){e.stopImmediatePropagation();if(e.key==='Escape'&&event==='keydown'){e.preventDefault();if(state.texting)closeText();else if(state.editing)$('edit-done').click();else closeSettings();}}
   },true);
 
-  const startupCommands = 'in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1';
+  // The shipped configuration disables vsync and permits 500 engine frames/s.
+  // On web, vid_vsync=1 selects requestAnimationFrame instead of setTimeout(0).
+  // Keep native resolution/assets; avoid rendering several unseen frames per refresh.
+  const startupCommands = 'vid_vsync 1; cl_maxfps 0; in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1';
   function fail(text) {
     state.error=String(text);state.ready=false;releaseAll();$('welcome').hidden=false;$('welcome').classList.add('failed');$('start').hidden=false;$('start').disabled=false;$('start').textContent='Reintentar';$('start').onclick=()=>location.reload();
     $('boot-status').textContent='No se pudo iniciar: '+String(text).slice(0,240);$('input-layer').hidden=true;
