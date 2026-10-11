@@ -20,13 +20,42 @@
     }
   } catch { canSave = false; }
 
-  const state = {version:'3.0.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.1.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
   const holdCommands = {fire:'attack',ads:'button8',reload:'button5',use:'button7',weapon:'button4',melee:'button6',grenade:'button3'};
   let look = null, move = null, menuPointer = null, sprintOwner = null, editPointer = null, adsLatch = false, lastAxes = [null,null], toastTimer, dismissedPortrait = false;
   let sprintTimer=null,resizeQueued=false;
+  const movementKeys=new Set();
+  const movementBindings={87:'forward',83:'back',65:'moveleft',68:'moveright'};
+  function movementKey(code,on) {
+    if(movementKeys.has(code)===on)return;
+    if(on)movementKeys.add(code);else movementKeys.delete(code);
+    key(code,on);record(`Movimiento: ${on?'+':'-'}${movementBindings[code]}`);
+    state.movementKeys=[...movementKeys];
+  }
+  function syncMovement(force=false) {
+    const [x,y]=state.axes,magnitude=Math.hypot(x,y);
+    // Hysteresis at the outer ring: full movement uses the game's native WASD
+    // route. Never add it on top of the analog controller's contribution.
+    const digital=magnitude>=(state.movementRoute==='keys'?.76:.90);
+    if(digital){
+      if(state.movementRoute!=='keys'||force){axis(0,0);axis(1,0);lastAxes=[0,0];}
+      state.movementRoute='keys';
+      const has=(code,value)=>value>(movementKeys.has(code)?.18:.28);
+      const wanted=new Set();
+      if(has(68,x))wanted.add(68);if(has(65,-x))wanted.add(65);
+      if(has(83,y))wanted.add(83);if(has(87,-y))wanted.add(87);
+      // Release opposite directions before applying the next combination.
+      for(const code of [...movementKeys])if(!wanted.has(code))movementKey(code,false);
+      for(const code of wanted)movementKey(code,true);
+    }else{
+      for(const code of [...movementKeys])movementKey(code,false);
+      state.movementRoute='analog';
+      for(let i=0;i<2;i++)if(force||Math.abs(state.axes[i]-lastAxes[i])>.0001){axis(i,state.axes[i]);lastAxes[i]=state.axes[i];}
+    }
+  }
 
   function toast(message) { $('toast').textContent=message; $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{$('toast').hidden=true;},3200); }
   function save() {
@@ -63,7 +92,7 @@
   function cancelAutoRun() {
     state.autoRun=false;$('stick').classList.remove('locked');
     stopSprint();
-    if(!move){state.axes=[0,0];axis(0,0);axis(1,0);lastAxes=[0,0];$('knob').style.transform='translate(0px,0px)';}
+    if(!move){state.axes=[0,0];syncMovement(true);$('knob').style.transform='translate(0px,0px)';}
   }
   function updateSprint() {
     const forward=-state.axes[1],side=Math.abs(state.axes[0]);
@@ -72,7 +101,7 @@
     if(forward<.92||side>.38||sprintOwner!==null||sprintTimer!==null)return;
     // Commit analog movement before requesting sprint. NZP rejects impulse 23
     // when it has not yet received a forward usercmd. A short delay avoids that race.
-    axis(0,state.axes[0]);axis(1,state.axes[1]);lastAxes=[...state.axes];
+    syncMovement(true);
     sprintTimer=setTimeout(()=>{
       sprintTimer=null;
       if(isPlaying()&&!state.ads&&move&&-state.axes[1]>=.92&&Math.abs(state.axes[0])<=.38){
@@ -105,7 +134,7 @@
     for(const code of menuTimers.keys())key(code,false);
     for(const timer of menuTimers.values())clearTimeout(timer);
     menuTimers.clear(); pointers.clear(); look=null;move=null;editPointer=null;adsLatch=false;state.ads=false;state.axes=[0,0];
-    axis(0,0);axis(1,0);lastAxes=[0,0];
+    syncMovement(true);
     document.querySelector('[data-action="ads"]').classList.remove('latched');
     $('knob').style.transform='translate(0px,0px)';
     resetStick();
@@ -197,6 +226,10 @@
     const length=Math.hypot(dx,dy),magnitude=Math.min(1,length/radius),dead=.12;
     const power=magnitude<=dead?0:(magnitude-dead)/(1-dead);
     state.axes=length>0?[dx/length*power,dy/length*power]:[0,0];
+    // Remove incidental drift near each cardinal axis. A radial deadzone alone
+    // still reports tiny sideways/backward values, changing native speed rules.
+    state.axes=state.axes.map(v=>Math.abs(v)<.08?0:Math.round(v*400)/400);
+    syncMovement();
     updateSprint();
     $('knob').style.transform=`translate(${length?dx/length*Math.min(length,radius):0}px,${length?dy/length*Math.min(length,radius):0}px)`;
   }
@@ -212,7 +245,7 @@
   const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){
     move=null;
     if(e.type==='pointerup'&&state.autoRun&&isPlaying()&&!state.ads){
-      state.axes=[0,-1];axis(0,0);axis(1,-1);lastAxes=[0,-1];resetStick();
+      state.axes=[0,-1];syncMovement();resetStick();
       $('knob').style.transform=`translate(0px,${-52*cfg.scale}px)`;
     }else{cancelAutoRun();resetStick();}
   }};
@@ -383,11 +416,11 @@
   };
   window.addEventListener('error',event=>{if(state.started&&!state.ready)fail(event.message||'Error del motor');});
   function frame() {
-    if(state.previewOnly&&isPlaying())for(let i=0;i<2;i++)if(Math.abs(state.axes[i]-lastAxes[i])>.0001){axis(i,state.axes[i]);lastAxes[i]=state.axes[i];}
+    if(state.previewOnly&&isPlaying())syncMovement();
     if(state.ready&&engine()) {
       const mode=FTEC.pointerwantlock?'game':'menu';
       if(state.mode!==mode)showMode(mode);
-      if(isPlaying())for(let i=0;i<2;i++)if(Math.abs(state.axes[i]-lastAxes[i])>.0001){axis(i,state.axes[i]);lastAxes[i]=state.axes[i];}
+      if(isPlaying())syncMovement();
     }
     requestAnimationFrame(frame);
   }
