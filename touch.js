@@ -3,7 +3,7 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const defaults = { layoutVersion:4, sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, labels:false, haptics: false, positions: {} };
+  const defaults = { layoutVersion:5, sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, labels:false, haptics: false, positions: {} };
   const storageKey = 'nzp-touch-fieldkit-v2';
   let cfg = structuredClone(defaults), canSave = true;
   try {
@@ -14,13 +14,14 @@
         if (Number.isFinite(saved[key])) cfg[key] = Math.max(ranges[key][0],Math.min(ranges[key][1],saved[key]));
       }
       for (const key of ['leftHand','invertY','toggleAds','labels','haptics']) if (typeof saved[key] === 'boolean') cfg[key] = saved[key];
-      if (saved.layoutVersion===defaults.layoutVersion && saved.positions && typeof saved.positions === 'object') for (const [key, value] of Object.entries(saved.positions)) {
+      if ((saved.layoutVersion===defaults.layoutVersion||saved.layoutVersion===4) && saved.positions && typeof saved.positions === 'object') for (const [key, value] of Object.entries(saved.positions)) {
+        if(saved.layoutVersion===4&&(key==='jump'||key==='crouch'))continue;
         if (Array.isArray(value) && value.length === 2 && value.every(v=>Number.isFinite(v)&&v>=0&&v<=1)) cfg.positions[key] = value;
       }
     }
   } catch { canSave = false; }
 
-  const state = {version:'3.2.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.2.1',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
@@ -124,9 +125,22 @@
       if(state.ads)cancelAutoRun();else updateSprint();
     }
   }
-  let pulseId = 0;
-  function pulse(action) { const id='pulse-'+(++pulseId); hold(action,id,true); setTimeout(()=>hold(action,id,false),100); }
+  // Use the engine's native key-event path for discrete weapon actions, as
+  // movement already does. No per-tap command-string allocation or overlapping
+  // pulse owners. Key releases also run when the page loses focus.
+  const pulseKeys = {reload:82,melee:86,weapon:49};
+  const pulseTimers = new Map();
+  function pulse(action) {
+    const code=pulseKeys[action];
+    if(!code||pulseTimers.has(action))return;
+    key(code,true);record(`Acción: ${action}`);visual(action,true);
+    pulseTimers.set(action,setTimeout(()=>{
+      key(code,false);pulseTimers.delete(action);visual(action,false);
+    },100));
+  }
   function releaseAll() {
+    for(const [action,timer] of pulseTimers){clearTimeout(timer);key(pulseKeys[action],false);visual(action,false);}
+    pulseTimers.clear();
     cancelAutoRun();
     if(menuPointer!==null&&engine())getWasmTableEntry(FTEC.evcb.button)(0,0,0);
     menuPointer=null;
@@ -361,7 +375,7 @@
   // The shipped configuration disables vsync and permits 500 engine frames/s.
   // On web, vid_vsync=1 selects requestAnimationFrame instead of setTimeout(0).
   // Keep native resolution/assets; avoid rendering several unseen frames per refresh.
-  const startupCommands = 'vid_vsync 1; cl_maxfps 0; in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1';
+  const startupCommands = 'vid_vsync 1; cl_maxfps 0; in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1; bind r +button5; bind v +button6; bind 1 +button4';
   function fail(text) {
     state.error=String(text);state.ready=false;releaseAll();$('welcome').hidden=false;$('welcome').classList.add('failed');$('start').hidden=false;$('start').disabled=false;$('start').textContent='Reintentar';$('start').onclick=()=>location.reload();
     $('boot-status').textContent='No se pudo iniciar: '+String(text).slice(0,240);$('input-layer').hidden=true;
