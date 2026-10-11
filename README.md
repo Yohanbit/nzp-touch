@@ -4,7 +4,7 @@ Versión web de **Nazi Zombies: Portable** con controles táctiles. Proyecto no 
 
 ## Jugar
 
-**[Abrir el juego · v3.2.2](https://yohanbit.github.io/nzp-touch/?v=3.2.2&layout=5)**
+**[Abrir el juego · v3.2.3](https://yohanbit.github.io/nzp-touch/?v=3.2.3&layout=5)**
 
 Juega en horizontal. La primera carga descarga unos 100 MB. Toca la pantalla para activar el sonido.
 

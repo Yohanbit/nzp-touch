@@ -21,13 +21,19 @@
     }
   } catch { canSave = false; }
 
-  const state = {version:'3.2.2',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.2.3',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
   const holdCommands = {fire:'attack',ads:'button8',reload:'button5',use:'button7',weapon:'button4',melee:'button6',grenade:'button3'};
   let look = null, move = null, menuPointer = null, sprintOwner = null, editPointer = null, adsLatch = false, lastAxes = [null,null], toastTimer, dismissedPortrait = false;
   let sprintTimer=null,resizeQueued=false;
+  let pendingMove=null,knobPosition='';
+  function positionKnob(x,y){
+    const value=`translate(${Math.round(x)}px,${Math.round(y)}px)`;
+    if(value===knobPosition)return;
+    knobPosition=value;$('knob').style.transform=value;
+  }
   const movementKeys=new Set();
   const movementBindings={87:'forward',83:'back',65:'moveleft',68:'moveright'};
   function movementKey(code,on) {
@@ -97,7 +103,7 @@
   function cancelAutoRun() {
     state.autoRun=false;$('stick').classList.remove('locked');
     stopSprint();
-    if(!move){state.axes=[0,0];syncMovement(true);$('knob').style.transform='translate(0px,0px)';}
+    if(!move){state.axes=[0,0];syncMovement(true);positionKnob(0,0);}
   }
   function updateSprint() {
     const forward=-state.axes[1],side=Math.abs(state.axes[0]);
@@ -143,6 +149,7 @@
     },100));
   }
   function releaseAll() {
+    pendingMove=null;
     for(const [action,timer] of pulseTimers){clearTimeout(timer);key(pulseKeys[action],false);visual(action,false);}
     pulseTimers.clear();
     cancelAutoRun();
@@ -154,7 +161,7 @@
     menuTimers.clear(); pointers.clear(); look=null;move=null;editPointer=null;adsLatch=false;state.ads=false;state.axes=[0,0];
     syncMovement(true);
     document.querySelector('[data-action="ads"]').classList.remove('latched');
-    $('knob').style.transform='translate(0px,0px)';
+    positionKnob(0,0);
     resetStick();
   }
   function resetStick() { const el=$('stick');el.style.left=cfg.leftHand?'56%':'44%';el.style.top='57%'; }
@@ -249,7 +256,7 @@
     state.axes=state.axes.map(v=>Math.abs(v)<.08?0:Math.round(v*400)/400);
     syncMovement();
     updateSprint();
-    $('knob').style.transform=`translate(${length?dx/length*Math.min(length,radius):0}px,${length?dy/length*Math.min(length,radius):0}px)`;
+    positionKnob(length?dx/length*Math.min(length,radius):0,length?dy/length*Math.min(length,radius):0);
   }
   $('move-zone').addEventListener('pointerdown',e=>{
     stopEvent(e);if(!isPlaying()||move||e.button!==0)return;capture($('move-zone'),e);
@@ -259,12 +266,19 @@
     const x=Math.max(zone.left+pad,Math.min(zone.right-pad,e.clientX)),y=Math.max(zone.top+pad,Math.min(zone.bottom-pad,e.clientY));
     move={id:e.pointerId,x,y};$('stick').style.left=(x-zone.left)+'px';$('stick').style.top=(y-zone.top)+'px';updateMove(e);
   });
-  $('move-zone').addEventListener('pointermove',e=>{stopEvent(e);updateMove(e);});
+  // Touch delivery can exceed display refresh. Process the latest joystick
+  // sample once per frame instead of rebuilding movement and repainting the
+  // overlay for every sub-frame finger tremor. Other touch controls stay direct.
+  $('move-zone').addEventListener('pointermove',e=>{
+    stopEvent(e);
+    if(move?.id===e.pointerId)pendingMove={pointerId:e.pointerId,clientX:e.clientX,clientY:e.clientY};
+  });
   const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){
+    pendingMove=null;
     move=null;
     if(e.type==='pointerup'&&state.autoRun&&isPlaying()&&!state.ads){
       state.axes=[0,-1];syncMovement();resetStick();
-      $('knob').style.transform=`translate(0px,${-52*cfg.scale}px)`;
+      positionKnob(0,-52*cfg.scale);
     }else{cancelAutoRun();resetStick();}
   }};
   for(const event of ['pointerup','pointercancel','lostpointercapture'])$('move-zone').addEventListener(event,endMove);
@@ -434,11 +448,12 @@
   };
   window.addEventListener('error',event=>{if(state.started&&!state.ready)fail(event.message||'Error del motor');});
   function frame() {
-    if(state.previewOnly&&isPlaying())syncMovement();
+    if(pendingMove){const sample=pendingMove;pendingMove=null;if(isPlaying())updateMove(sample);}
     if(state.ready&&engine()) {
       const mode=FTEC.pointerwantlock?'game':'menu';
       if(state.mode!==mode)showMode(mode);
-      if(isPlaying())syncMovement();
+      // Native held keys persist until release; do not rebuild an unchanged
+      // diagonal on every frame. Movement is committed by joystick events.
     }
     requestAnimationFrame(frame);
   }
