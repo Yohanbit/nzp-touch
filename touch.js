@@ -3,8 +3,8 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const defaults = { sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, haptics: false, positions: {} };
-  const storageKey = 'nzp-touch-fieldkit-v1';
+  const defaults = { sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, labels:false, haptics: false, positions: {} };
+  const storageKey = 'nzp-touch-fieldkit-v2';
   let cfg = structuredClone(defaults), canSave = true;
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
@@ -13,19 +13,20 @@
         const ranges = {sensitivity:[.35,2], adsSensitivity:[.2,1], scale:[.8,1.4], opacity:[.3,1]};
         if (Number.isFinite(saved[key])) cfg[key] = Math.max(ranges[key][0],Math.min(ranges[key][1],saved[key]));
       }
-      for (const key of ['leftHand','invertY','toggleAds','autoSprint','haptics']) if (typeof saved[key] === 'boolean') cfg[key] = saved[key];
+      for (const key of ['leftHand','invertY','toggleAds','labels','haptics']) if (typeof saved[key] === 'boolean') cfg[key] = saved[key];
       if (saved.positions && typeof saved.positions === 'object') for (const [key, value] of Object.entries(saved.positions)) {
         if (Array.isArray(value) && value.length === 2 && value.every(v=>Number.isFinite(v)&&v>=0&&v<=1)) cfg.positions[key] = value;
       }
     }
   } catch { canSave = false; }
 
-  const state = {ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,axes:[0,0],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'2.0.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,axes:[0,0],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
   const holdCommands = {fire:'attack',ads:'button8',reload:'button5',use:'button7',weapon:'button4',melee:'button6',grenade:'button3'};
   let look = null, move = null, menuPointer = null, sprintOwner = null, editPointer = null, adsLatch = false, lastAxes = [null,null], toastTimer, dismissedPortrait = false;
+  let sprintTimer=null,resizeQueued=false;
 
   function toast(message) { $('toast').textContent=message; $('toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{$('toast').hidden=true;},3200); }
   function save() {
@@ -50,7 +51,30 @@
     getWasmTableEntry(FTEC.evcb.mouse)(0,0,Math.max(-90,Math.min(90,dx))*gain,Math.max(-90,Math.min(90,dy))*gain*(cfg.invertY?-1:1),0,0);
   }
   function vibrate() { if(cfg.haptics && navigator.vibrate)navigator.vibrate(10); }
-  function visual(action,on) { document.querySelector(`[data-action="${action}"]`)?.classList.toggle('active',on); }
+  function visual(action,on) {
+    if(action==='sprint'){$('stick').classList.toggle('sprinting',on);state.sprintRequested=on;return;}
+    document.querySelector(`[data-action="${action}"]`)?.classList.toggle('active',on);
+  }
+  function stopSprint() {
+    clearTimeout(sprintTimer);sprintTimer=null;
+    if(sprintOwner!==null){command('impulse 24');sprintOwner=null;}
+    visual('sprint',false);
+  }
+  function updateSprint() {
+    const forward=-state.axes[1],side=Math.abs(state.axes[0]);
+    const permitted=isPlaying()&&!state.ads&&move!==null;
+    if(!permitted||forward<.80||side>.45){stopSprint();return;}
+    if(forward<.92||side>.38||sprintOwner!==null||sprintTimer!==null)return;
+    // Commit analog movement before requesting sprint. NZP rejects impulse 23
+    // when it has not yet received a forward usercmd. A short delay avoids that race.
+    axis(0,state.axes[0]);axis(1,state.axes[1]);lastAxes=[...state.axes];
+    sprintTimer=setTimeout(()=>{
+      sprintTimer=null;
+      if(isPlaying()&&!state.ads&&move&&-state.axes[1]>=.92&&Math.abs(state.axes[0])<=.38){
+        sprintOwner='auto';command('impulse 23');visual('sprint',true);
+      }
+    },120);
+  }
   function hold(action,owner,on) {
     if (!holdCommands[action]) return;
     const owners = held.get(action)||new Set();
@@ -62,13 +86,13 @@
     visual(action,owners.size>0);
     if(action==='ads'){
       state.ads=owners.size>0;
-      if(state.ads&&sprintOwner==='auto'){command('impulse 24');sprintOwner=null;visual('sprint',false);}
+      if(state.ads)stopSprint();else updateSprint();
     }
   }
   let pulseId = 0;
   function pulse(action) { const id='pulse-'+(++pulseId); hold(action,id,true); setTimeout(()=>hold(action,id,false),100); }
   function releaseAll() {
-    if(sprintOwner!==null){command('impulse 24');sprintOwner=null;visual('sprint',false);}
+    stopSprint();
     if(menuPointer!==null&&engine())getWasmTableEntry(FTEC.evcb.button)(0,0,0);
     menuPointer=null;
     for(const [action,owners] of held) if(owners.size) { command(`-${holdCommands[action]} ${actionIds[action]}`); owners.clear(); visual(action,false); }
@@ -83,6 +107,7 @@
   function resetStick() { const el=$('stick');el.style.left=cfg.leftHand?'64%':'36%';el.style.top='59%'; }
   function apply() {
     document.body.classList.toggle('left-handed',cfg.leftHand);
+    document.body.classList.toggle('show-labels',cfg.labels);
     const r=$('stage').getBoundingClientRect();
     const base=Math.max(56,Math.min(70,r.height/7));
     document.documentElement.style.setProperty('--button-size',(base*cfg.scale)+'px');
@@ -97,7 +122,7 @@
     for(const name of ['sensitivity','adsSensitivity','scale','opacity']) {
       $(name).value=cfg[name]; $(name+'-out').textContent=Math.round(cfg[name]*100)+'%';
     }
-    for(const name of ['leftHand','invertY','toggleAds','autoSprint','haptics'])$(name).checked=cfg[name];
+    for(const name of ['leftHand','invertY','toggleAds','labels','haptics'])$(name).checked=cfg[name];
     resetStick();
   }
   function showMode(mode) {
@@ -124,7 +149,6 @@
       if(action==='ads'&&cfg.toggleAds) {
         adsLatch=!adsLatch;hold('ads','latch',adsLatch);button.classList.toggle('latched',adsLatch);
       } else if(action==='jump')command('impulse 10');
-      else if(action==='sprint'&&sprintOwner===null){sprintOwner=e.pointerId;command('impulse 23');}
       else if(action==='crouch')command('impulse 30');
       else if(action==='weapon'||action==='reload'||action==='melee')pulse(action);
       else hold(action,e.pointerId,true);
@@ -144,7 +168,6 @@
       stopEvent(e);
       if(editPointer?.id===e.pointerId){editPointer=null;button.classList.remove('active');save();return;}
       const p=pointers.get(e.pointerId);if(!p)return;
-      if(p.action==='sprint'&&sprintOwner===e.pointerId){command('impulse 24');sprintOwner=null;}
       if(!(p.action==='ads'&&cfg.toggleAds))hold(p.action,e.pointerId,false);
       if(!holdCommands[p.action])visual(p.action,false);
       pointers.delete(e.pointerId);
@@ -167,8 +190,7 @@
     const length=Math.hypot(dx,dy),magnitude=Math.min(1,length/radius),dead=.12;
     const power=magnitude<=dead?0:(magnitude-dead)/(1-dead);
     state.axes=length>0?[dx/length*power,dy/length*power]:[0,0];
-    if(cfg.autoSprint&&!state.ads&&state.axes[1]<-.92&&sprintOwner===null){sprintOwner='auto';command('impulse 23');visual('sprint',true);}
-    else if(sprintOwner==='auto'&&(state.axes[1]>-.65||state.ads)){command('impulse 24');sprintOwner=null;visual('sprint',false);}
+    updateSprint();
     $('knob').style.transform=`translate(${length?dx/length*Math.min(length,radius):0}px,${length?dy/length*Math.min(length,radius):0}px)`;
   }
   $('move-zone').addEventListener('pointerdown',e=>{
@@ -178,7 +200,7 @@
     move={id:e.pointerId,x,y};$('stick').style.left=(x-zone.left)+'px';$('stick').style.top=(y-zone.top)+'px';updateMove(e);
   });
   $('move-zone').addEventListener('pointermove',e=>{stopEvent(e);updateMove(e);});
-  const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){move=null;state.axes=[0,0];axis(0,0);axis(1,0);lastAxes=[0,0];if(sprintOwner==='auto'){command('impulse 24');sprintOwner=null;visual('sprint',false);}$('knob').style.transform='translate(0px,0px)';resetStick();}};
+  const endMove=e=>{stopEvent(e);if(move?.id===e.pointerId){move=null;state.axes=[0,0];axis(0,0);axis(1,0);lastAxes=[0,0];stopSprint();$('knob').style.transform='translate(0px,0px)';resetStick();}};
   for(const event of ['pointerup','pointercancel','lostpointercapture'])$('move-zone').addEventListener(event,endMove);
 
   function menuPosition(e) {
@@ -229,7 +251,7 @@
   }
   $('settings-open').onclick=openSettings;$('settings-close').onclick=closeSettings;$('settings-done').onclick=closeSettings;
   for(const name of ['sensitivity','adsSensitivity','scale','opacity'])$(name).oninput=()=>{cfg[name]=Number($(name).value);apply();save();};
-  for(const name of ['leftHand','invertY','toggleAds','autoSprint','haptics'])$(name).onchange=()=>{releaseAll();cfg[name]=$(name).checked;apply();save();};
+  for(const name of ['leftHand','invertY','toggleAds','labels','haptics'])$(name).onchange=()=>{releaseAll();cfg[name]=$(name).checked;apply();save();};
   $('reset').onclick=()=>{releaseAll();cfg=structuredClone(defaults);apply();save();toast('Distribución y sensibilidad restablecidas');};
   $('edit-layout').onclick=()=>{
     releaseAll();state.editing=true;$('settings').hidden=true;$('stage').classList.add('editing');$('edit-banner').hidden=false;
@@ -239,15 +261,43 @@
     releaseAll();state.editing=false;$('stage').classList.remove('editing');$('edit-banner').hidden=true;$('settings').hidden=false;save();showMode(state.mode);
   };
 
+  function syncCanvas() {
+    if(!state.ready||state.previewOnly||!engine())return;
+    const canvas=$('canvas'),r=$('stage').getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+    const width=Math.max(1,Math.round(r.width*dpr)),height=Math.max(1,Math.round(r.height*dpr));
+    // Bypass Emscripten's fullscreen screen.width/screen.height fit: Android
+    // can report those in the previous orientation and add a bottom strip.
+    canvas.style.setProperty('width','100%','important');canvas.style.setProperty('height','100%','important');
+    const changed=canvas.width!==width||canvas.height!==height;
+    canvas.widthNative=width;canvas.heightNative=height;
+    if(canvas.width!==width)canvas.width=width;
+    if(canvas.height!==height)canvas.height=height;
+    if(changed&&FTEC.evcb.resize)getWasmTableEntry(FTEC.evcb.resize)(width,height,dpr);
+  }
+  function queueResize() {
+    if(resizeQueued)return;resizeQueued=true;
+    requestAnimationFrame(()=>{resizeQueued=false;syncCanvas();apply();orientation();});
+  }
   $('fullscreen').onclick=async()=>{
     try{
       if(document.fullscreenElement)await document.exitFullscreen();
-      else {await $('stage').requestFullscreen();try{await screen.orientation.lock('landscape');}catch{}}
-    }catch{toast('Este visor no permite pantalla completa. Usa el cliente en una pestaña propia.');}
+      else {await $('stage').requestFullscreen({navigationUI:'hide'});try{await screen.orientation.lock('landscape');}catch{}}
+      queueResize();
+    }catch{toast('Pantalla completa no disponible en este navegador.');}
   };
   function orientation() { const r=$('stage').getBoundingClientRect();$('orientation-hint').hidden=!state.ready||r.width>=r.height||dismissedPortrait||state.settings; }
   $('orientation-dismiss').onclick=()=>{dismissedPortrait=true;orientation();};
-  window.addEventListener('resize',()=>{releaseAll();apply();orientation();});
+  window.addEventListener('resize',()=>{releaseAll();queueResize();});
+  window.visualViewport?.addEventListener('resize',queueResize);
+  document.addEventListener('fullscreenchange',()=>{releaseAll();queueResize();setTimeout(queueResize,180);});
+  window.addEventListener('orientationchange',()=>{releaseAll();queueResize();setTimeout(queueResize,250);});
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(queueResize).observe($('stage'));
+  // Loading is automatic. Sound still requires the browser's first real user gesture.
+  document.addEventListener('pointerdown',()=>{
+    if(typeof AL!=='undefined')for(const context of Object.values(AL.contexts||{})){
+      if(context.audioCtx?.state==='suspended')context.audioCtx.resume().catch(()=>{});
+    }
+  },true);
   window.addEventListener('blur',releaseAll);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){const wasGame=isPlaying();releaseAll();if(wasGame)tapKey(27);}
@@ -262,7 +312,7 @@
 
   const startupCommands = 'in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1';
   function fail(text) {
-    state.error=String(text);state.ready=false;releaseAll();$('welcome').hidden=false;$('start').disabled=false;$('start').textContent='RECARGAR Y REINTENTAR';$('start').onclick=()=>location.reload();
+    state.error=String(text);state.ready=false;releaseAll();$('welcome').hidden=false;$('welcome').classList.add('failed');$('start').hidden=false;$('start').disabled=false;$('start').textContent='Reintentar';$('start').onclick=()=>location.reload();
     $('boot-status').textContent='No se pudo iniciar: '+String(text).slice(0,240);$('input-layer').hidden=true;
   }
   const logs=[];
@@ -291,23 +341,24 @@
           state.ready=true;command(startupCommands);
           // Allocate the virtual controller; FTE allocates on the first extreme value, discarding that event.
           axis(0,1);axis(0,0);axis(1,0);
-          $('welcome').hidden=true;$('input-layer').hidden=false;showMode(FTEC.pointerwantlock?'game':'menu');apply();orientation();
+          // Replace the engine's screen-fit resize hook with viewport sizing.
+          window.onresize=syncCanvas;
+          $('welcome').hidden=true;$('input-layer').hidden=false;showMode(FTEC.pointerwantlock?'game':'menu');syncCanvas();apply();orientation();
         }else if(++tries>100){clearInterval(wait);fail('El motor no registró sus entradas.');}
       },100);
     }]
   };
   function previewControls() {
     state.previewOnly=true;state.ready=true;state.error=null;$('welcome').hidden=true;$('input-layer').hidden=false;$('preview-status').hidden=false;$('stage').classList.add('preview-only');
-    document.querySelector('.menu-note').innerHTML='PRUEBA DE NAVEGACIÓN <span>No es el menú ejecutándose: el visor bloquea el motor.</span>';
     showMode('game');apply();orientation();
   }
   $('start').onclick=async()=>{
-    if(state.started)return;state.started=true;$('start').disabled=true;$('start').textContent='PREPARANDO EQUIPO…';$('boot-status').textContent='Descargando motor y recursos…';
+    if(state.started)return;state.started=true;$('start').hidden=true;$('start').disabled=true;$('boot-status').textContent='Cargando…';
     // Probe support BEFORE downloading/starting FTE, so the restricted preview cannot crash.
     try { await WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0])); }
     catch {
-      state.started=false;$('start').disabled=false;$('start').innerHTML='PROBAR DISTRIBUCIÓN <span>→</span>';$('start').onclick=previewControls;
-      $('boot-status').textContent='Este visor bloquea WebAssembly. La versión jugable necesita un alojamiento web compatible; la prueba de distribución no ejecuta NZP.';
+      state.started=false;$('welcome').classList.add('failed');$('start').hidden=false;$('start').disabled=false;$('start').textContent='Probar botones';$('start').onclick=previewControls;
+      $('boot-status').textContent='El visor no permite ejecutar el motor. Abre la web pública para jugar.';
       return;
     }
     const script=document.createElement('script');script.src='ftewebgl.js';script.onerror=()=>fail('No se pudo cargar ftewebgl.js.');document.head.appendChild(script);
@@ -324,5 +375,6 @@
   }
   apply();save();frame();
   // Exposed for diagnostics and reproducible input tests; does not invent gameplay state.
-  window.NZPTouch={state,logs,releaseAll,getConfig:()=>structuredClone(cfg),engineAvailable:()=>!!engine(),openSettings,closeSettings};
+  window.NZPTouch={state,logs,releaseAll,getConfig:()=>structuredClone(cfg),engineAvailable:()=>!!engine(),openSettings,closeSettings,syncCanvas};
+  $('start').onclick();
 })();

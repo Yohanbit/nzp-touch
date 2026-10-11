@@ -6,17 +6,21 @@ Experimental, unofficial mobile touch interface for **Nazi Zombies: Portable**, 
 
 https://yohanbit.github.io/nzp-touch/
 
-Open in Chrome on Android, preferably in landscape. Press **INICIAR NZP**, wait for the game data to load, then navigate the original menus with the arrow buttons and **CONFIRMAR**. Initial loading downloads roughly 100 MB.
+Open in Chrome on Android, preferably in landscape. The game loads automatically, without a landing page. Navigate the original menus using touch or the arrow buttons and **✓**. Initial loading downloads roughly 100 MB. The browser requires a real touch before sound can start.
 
 ## Controls
 
-Analog left stick, right-side drag to look, hold-and-drag fire button, aim, reload, use/buy/repair, jump, stance, weapon switching, melee and hold/release grenade. Includes original-menu navigation and manual text entry.
+Analog left stick, right-side drag to look, hold-and-drag fire button, aim, reload, use/buy/repair, jump, stance, weapon switching, melee and hold/release grenade. Includes original-menu navigation and manual text entry. The existing game HUD remains authoritative; the interface does not fabricate perk, ammo or score values.
 
-Settings: look and aim sensitivity, button size and opacity, left-handed layout, optional haptics, auto-sprint and movable buttons. Settings are stored locally where supported.
+**v2:** minimal icon-only controls inspired by the supplied mobile-control reference; no separate sprint button. Push the joystick fully forward to request sprint, ease back or aim to stop. Sideways/backward motion does not activate sprint. Includes a short forward-input delay before the original sprint impulse, avoiding an input-order race.
+
+Settings: look and aim sensitivity, button size and opacity, left-handed layout, optional button labels and haptics, and movable buttons. Settings are stored locally where supported. v2 uses its own layout storage key so v1 button coordinates do not distort the new default arrangement.
+
+Fullscreen/windowed sizing is synchronized to the actual viewport and drawing buffer, including rotation and visual-viewport changes, rather than fitting to stale Android screen dimensions.
 
 ## Status
 
-The local client passed 24 automated Chromium checks, including engine/map startup and simultaneous touch inputs. This does not certify all gameplay. POCO M5s performance and cooperative connectivity have not been verified for this modified client. Public hosting must also be tested separately.
+The v2 local client passed 41 automated Chromium checks, including automatic engine/map startup via the original menus, simultaneous touch inputs, sprint input conditions, action-command mapping, control configuration, fullscreen entry/exit and orientation resizing. These checks do not certify every gameplay outcome or actual sprint speed. POCO M5s performance and cooperative connectivity have not been verified for this modified client. Public deployment is tested separately.
 
 ## Attribution and licenses
 
