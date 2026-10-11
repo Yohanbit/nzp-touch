@@ -21,7 +21,7 @@
     }
   } catch { canSave = false; }
 
-  const state = {version:'3.2.1',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.2.2',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
@@ -40,11 +40,15 @@
     const [x,y]=state.axes,magnitude=Math.hypot(x,y);
     // Hysteresis at the outer ring: full movement uses the game's native WASD
     // route. Never add it on top of the analog controller's contribution.
-    const digital=magnitude>=(state.movementRoute==='keys'?.76:.90);
+    // Diagonals must use native WASD even inside the outer ring. Otherwise a
+    // shorter diagonal drag silently returns to the problematic analog route.
+    const diagonalThreshold=state.movementRoute==='keys'?.14:.20;
+    const diagonal=Math.abs(x)>=diagonalThreshold&&Math.abs(y)>=diagonalThreshold;
+    const digital=diagonal||magnitude>=(state.movementRoute==='keys'?.76:.90);
     if(digital){
       if(state.movementRoute!=='keys'||force){axis(0,0);axis(1,0);lastAxes=[0,0];}
       state.movementRoute='keys';
-      const has=(code,value)=>value>(movementKeys.has(code)?.18:.28);
+      const has=(code,value)=>value>(movementKeys.has(code)?.12:.18);
       const wanted=new Set();
       if(has(68,x))wanted.add(68);if(has(65,-x))wanted.add(65);
       if(has(83,y))wanted.add(83);if(has(87,-y))wanted.add(87);
@@ -117,8 +121,8 @@
     const before = owners.size;
     if(on)owners.add(owner);else owners.delete(owner);
     held.set(action,owners);
-    if(!before && owners.size)command(`+${holdCommands[action]} ${actionIds[action]}`);
-    if(before && !owners.size)command(`-${holdCommands[action]} ${actionIds[action]}`);
+    if(!before && owners.size){if(action==='use'){key(69,true);record('Interacción: pulsar');}else command(`+${holdCommands[action]} ${actionIds[action]}`);}
+    if(before && !owners.size){if(action==='use'){key(69,false);record('Interacción: soltar');}else command(`-${holdCommands[action]} ${actionIds[action]}`);}
     visual(action,owners.size>0);
     if(action==='ads'){
       state.ads=owners.size>0;
@@ -144,7 +148,7 @@
     cancelAutoRun();
     if(menuPointer!==null&&engine())getWasmTableEntry(FTEC.evcb.button)(0,0,0);
     menuPointer=null;
-    for(const [action,owners] of held) if(owners.size) { command(`-${holdCommands[action]} ${actionIds[action]}`); owners.clear(); visual(action,false); }
+    for(const [action,owners] of held) if(owners.size) { if(action==='use')key(69,false);else command(`-${holdCommands[action]} ${actionIds[action]}`); owners.clear(); visual(action,false); }
     for(const code of menuTimers.keys())key(code,false);
     for(const timer of menuTimers.values())clearTimeout(timer);
     menuTimers.clear(); pointers.clear(); look=null;move=null;editPointer=null;adsLatch=false;state.ads=false;state.axes=[0,0];
@@ -375,7 +379,7 @@
   // The shipped configuration disables vsync and permits 500 engine frames/s.
   // On web, vid_vsync=1 selects requestAnimationFrame instead of setTimeout(0).
   // Keep native resolution/assets; avoid rendering several unseen frames per refresh.
-  const startupCommands = 'vid_vsync 1; cl_maxfps 0; in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1; bind r +button5; bind v +button6; bind 1 +button4';
+  const startupCommands = 'vid_vsync 1; cl_maxfps 0; in_windowed_mouse 1; sensitivity 3; m_filter 0; joyadvaxisx moveright; joyadvaxisy moveback; joyforwardsensitivity 1; joysidesensitivity 1; joyforwardthreshold 0; joysidethreshold 0; joyexponent 1; bind r +button5; bind v +button6; bind 1 +button4; bind e +button7';
   function fail(text) {
     state.error=String(text);state.ready=false;releaseAll();$('welcome').hidden=false;$('welcome').classList.add('failed');$('start').hidden=false;$('start').disabled=false;$('start').textContent='Reintentar';$('start').onclick=()=>location.reload();
     $('boot-status').textContent='No se pudo iniciar: '+String(text).slice(0,240);$('input-layer').hidden=true;
