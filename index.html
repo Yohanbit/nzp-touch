@@ -1,196 +1,66 @@
 <!doctype html>
-<html lang="en-us">
-  <head>
-	<meta charset="utf-8">
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<meta name=viewport content="width=device-width, initial-scale=1">
-	<meta content="Nazi Zombies: Portable" property="og:title" />
-    	<meta content="Call of Duty: Zombies de-make, now in your browser via WebGL!" property="og:description" />
-    	<meta content="https://nzp-team.github.io/latest/game.html" property="og:url" />
-   	<meta content="hhttps://nzp-team.github.io/latest/nzportable.ico" property="og:image" />
-	<meta content="#6e0d00" data-react-helmet="true" name="theme-color" />
-	<title>NZ: Portable</title>
-	<link rel="icon" href="nzportable.ico">
-	<style>
-	html,body { background-color:#000000; color:#808080; height:100%;width:100%;margin:0;padding:0;}
-	.emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
-	div.emscripten { text-align: center; padding:0; margin: 0;}
-	/* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-	canvas.emscripten { border: 0px none; width:100%; height:100%; padding:0; margin: 0;}
-	</style>
-  </head>
-  <body ondrop="gotdrop(event);" ondragover="event.preventDefault()">
-	<div class="emscripten" id="status">Please allow/unblock our javascript to play.</div>
-	<div id="dropzone" ondrop="gotdrop(event);" ondragover="event.preventDefault()" hidden=1>Drop Zone</div>
-	<button type="button" onclick="begin()" id="begin" hidden=1>Click To Begin!</button>
-	<div class="emscripten">
-		<progress value="0" max="100" id="progress" hidden=1></progress>  
-	</div>
-	<canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" hidden=1></canvas>
-	<script type='text/javascript'>
-// connect to canvas
-var Module = {
-	files:
-	{
-		"default.fmf" : "default.fmf",
-		"nzp/game.pk3" : "nzp/game.pk3",
-		"nzp/progs.pk3" : "nzp/progs.pk3"
-	},
-	print: function(msg)
-	{	//stdout...
-		console.log(msg);
-	},
-	printErr: function(text)
-	{	//stderr...
-		console.log(text);
-	},
-	canvas: document.getElementById('canvas'),	//for webgl to attach to
-	setStatus: function(text)
-	{	//gets spammed some prints during startup. blame emscripten.
-		if (Module.setStatus.interval)
-			clearInterval(Module.setStatus.interval);
-		var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
-		var statusElement = document.getElementById('status');
-		var progressElement = document.getElementById('progress');
-		if (m) {
-			text = m[1];
-			progressElement.value = parseInt(m[2])*100;
-			progressElement.max = parseInt(m[4])*100;
-			progressElement.hidden = false;
-		} else {
-			progressElement.value = null;
-			progressElement.max = null;
-			progressElement.hidden = true;
-		}
-		statusElement.innerHTML = text;
-		statusElement.hidden = text.length==0;
-	},
-//	preRun: [],
-	totalDependencies: 0,
-	monitorRunDependencies: function(left)
-	{	//progress is progress...
-		this.totalDependencies = Math.max(this.totalDependencies, left);
-		Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-	},
-//	onRuntimeInitialized: function(){},
-	postRun:
-	[	//each of these are called after main was run. we should have our mainloop set up now
-		function()
-		{
-			if (Module["sched"] === undefined)
-			{	//our main function failed to set up the main loop. ie: main didn't get called. panic.
-				alert("Unable to initialise. You may need to restart your browser. If you get this often and inconsistently, consider using a 64bit browser instead.");
-				Module.setStatus("Initialisation Failure");
-			}
-		}
-	],
-};
-function begin()
-{
-	if (Module.began)
-		return;
-	Module.began = true;
-	document.getElementById('dropzone').hidden = true;
-	document.getElementById('begin').hidden = true;
-	Module.setStatus('Downloading...');
-
-	// make a script. do it the hard way for the error.
-	var s = document.createElement('script');
-	// set it up
-	s.setAttribute('src',"ftewebgl.js");
-	s.setAttribute('type',"text/javascript");
-	s.setAttribute('charset',"utf-8");
-	s.addEventListener('error', function() {alert("Oh noes! we got an error!"); Module.setStatus("Unable to download engine javascript");}, false);
-	// add to DOM
-	document.head.appendChild(s);
-}
-
-//stuff to facilitate our drag+drop filesystem support
-function fixupfilepath(fname, path)
-{	//we just have a filename, try to guess where to put it.
-	if (path != "")
-		return path+fname;	//already has a path. use it. this allows people to drag+drop gamedirs.
-	var ext = fname.substr(fname.lastIndexOf('.') + 1);
-	if (ext == 'fmf' || ext == 'kpf')	//these are the only files that really make sense in the root.
-		return fname;
-	if (ext == 'bsp' || ext == 'map' || ext == 'lit' || ext == 'lux')
-		return "id1/maps/" + fname;	//bsps get their own extra subdir
-	return "id1/" + fname;	//probably a pak. maybe a cfg, no idea really.
-}
-function showfiles()
-{	//print the pending file list in some pretty way
-	if (Module.began)
-		return;
-	Module.setStatus('');
-	document.getElementById('dropzone').hidden = false;
-	document.getElementById('begin').hidden = false;
-	var nt = "Drag gamedirs or individual package files here to make them available!<br/>Active Files:<br/><pre>";
-	var keys = Object.keys(Module.files);
-	for(var i = 0; i < keys.length; i++)
-	{
-		if (Module.files[keys[i]] instanceof ArrayBuffer)
-		{
-			var sz = Module.files[keys[i]].byteLength;
-			if (sz > 512*1024)
-				sz = (sz / (1024*1024)) + "mb";
-			else if (sz > 512)
-				sz = (sz / 1024) + "kb";
-			else
-				sz = (sz) + " bytes";
-			nt += "    " + keys[i] + " ("+sz+")<br/>";
-		}
-		else
-			nt += "    " + keys[i] + "<br/>";
-	}
-	nt += "</pre>("+keys.length+" files)";
-	document.getElementById('dropzone').innerHTML = nt;
-}
-function scanfiles(item,path)
-{	//for directory drops
-	if (item.isFile)
-	{
-		item.file(function(f)
-		{
-			let n = fixupfilepath(f.name, path);
-			Module.files[n]=f.arrayBuffer();	//actually a promise...
-			Module.files[n].then(buf=>{Module.files[n]=buf;showfiles();});	//try and resolve it now.
-    	});
-	}
-	else if (item.isDirectory)
-	{
-		// Get folder contents
-		var dirReader = item.createReader();
-		dirReader.readEntries(function(entries)
-		{
-			for (var i=0; i<entries.length; i++)
-				scanfiles(entries[i], path + item.name + "/");
-		});
-	}
-}
-function gotdrop(ev)
-{	//user drag+dropped something. 
-	ev.preventDefault();
-	for (var i = 0; i < ev.dataTransfer.items.length; i++)
-		if (ev.dataTransfer.items[i].webkitGetAsEntry)
-		{
-			var d = ev.dataTransfer.items[i].webkitGetAsEntry();
-			if (d)
-				scanfiles(d, "");
-		}
-		else if (ev.dataTransfer.items[i].kind === 'file')
-		{
-			var f = ev.dataTransfer.items[i].getAsFile();
-			var n = fixupfilepath(f.name);
-			Module.files[n]=f.arrayBuffer();	//actually a promise...
-			Module.files[n].then(buf=>{Module.files[n]=buf;showfiles();});	//try and resolve it now.
-		}
-	showfiles();
-}
-if (window.location.hash != "" || Object.keys(Module.files).length)
-	begin();		//if the url has a #foo.fmf then just begin instantly, 
-else
-	showfiles();	//otherwise show our lame file dropper and wait for the user to click 'go'.
-    </script>  
-    <img src="https://hits.sh/hits.sh/nzp-team.github.io/latest/game.html/hits.svg" style="opacity:0;width:0px;">
-  </body>
-</html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"><meta name="theme-color" content="#161814"><title>NZP · Touch Field Kit</title><link rel="icon" href="nzportable.ico"><link rel="stylesheet" href="touch.css"></head>
+<body>
+<main id="stage">
+  <canvas id="canvas" tabindex="-1" aria-label="Juego NZP"></canvas>
+  <div id="input-layer" hidden>
+    <div id="look-zone" aria-label="Desliza para mirar"></div>
+    <div id="game-controls">
+      <div id="move-zone"><div id="stick"><span class="stick-cross"></span><span id="knob"></span></div><span class="zone-caption">MOVIMIENTO</span></div>
+      <button class="control major fire" data-action="fire" data-pos="0.90,0.62" aria-label="Disparar; arrastra para apuntar"><svg><use href="#i-fire"/></svg><small>FUEGO</small></button>
+      <button class="control" data-action="ads" data-pos="0.77,0.53" aria-label="Apuntar con la mira"><svg><use href="#i-ads"/></svg><small>MIRA</small></button>
+      <button class="control" data-action="reload" data-pos="0.79,0.81" aria-label="Recargar"><svg><use href="#i-reload"/></svg><small>RECARGAR</small></button>
+      <button class="control" data-action="use" data-pos="0.64,0.76" aria-label="Mantener para usar, comprar o reparar"><svg><use href="#i-use"/></svg><small>USAR</small></button>
+      <button class="control" data-action="jump" data-pos="0.94,0.83" aria-label="Saltar"><svg><use href="#i-jump"/></svg><small>SALTAR</small></button>
+      <button class="control secondary" data-action="crouch" data-pos="0.94,0.38" aria-label="Cambiar postura"><svg><use href="#i-crouch"/></svg><small>POSTURA</small></button>
+      <button class="control secondary" data-action="weapon" data-pos="0.66,0.52" aria-label="Cambiar de arma"><svg><use href="#i-weapon"/></svg><small>ARMA</small></button>
+      <button class="control secondary" data-action="melee" data-pos="0.69,0.30" aria-label="Cuchillo"><svg><use href="#i-melee"/></svg><small>CUCHILLO</small></button>
+      <button class="control secondary" data-action="grenade" data-pos="0.81,0.28" aria-label="Mantener granada y soltar para lanzar"><svg><use href="#i-grenade"/></svg><small>GRANADA</small></button>
+      <button class="control secondary" data-action="sprint" data-pos="0.13,0.48" aria-label="Correr"><svg><use href="#i-sprint"/></svg><small>CORRER</small></button>
+    </div>
+    <div id="menu-controls" hidden>
+      <div id="menu-hit-area" aria-label="Toca las opciones del menú original"></div>
+      <div class="menu-note">MENÚ ORIGINAL <span>Usa las flechas y confirma</span></div>
+      <div class="dpad"><button data-key="38" aria-label="Arriba">↑</button><button data-key="37" aria-label="Izquierda">←</button><span>✥</span><button data-key="39" aria-label="Derecha">→</button><button data-key="40" aria-label="Abajo">↓</button></div>
+      <div class="menu-actions"><button class="plate confirm" data-key="13">CONFIRMAR <span>↵</span></button><button class="plate" data-key="27">CERRAR MENÚ <span>↶</span></button></div>
+    </div>
+    <div class="top-tools"><button id="native-menu" class="tool" aria-label="Abrir menú del juego">Ⅱ <span>MENÚ</span></button><button id="scores" class="tool" aria-label="Marcador">≡</button><button id="text-open" class="tool" aria-label="Escribir en el campo seleccionado">⌨</button><button id="settings-open" class="tool" aria-label="Ajustar controles">⚙ <span>CONTROLES</span></button><button id="fullscreen" class="tool" aria-label="Pantalla completa">⛶</button></div>
+  </div>
+  <section id="welcome" class="sheet">
+    <div class="field-card"><div class="eyebrow">EQUIPO DE CAMPO / EDICIÓN TÁCTIL 01</div><div class="brand">NZ<span>:</span>P</div><h1>Sobrevive con<br>los pulgares.</h1><p>El juego original, con una nueva capa de controles. Sin cambiar mapas, armas ni reglas.</p><div class="briefing"><div><b>01 / MOVER</b><span>Joystick izquierdo con movimiento analógico.</span></div><div><b>02 / COMBATIR</b><span>Desliza a la derecha. Mantén fuego y arrastra para seguir apuntando.</span></div><div><b>03 / NAVEGAR</b><span>Flechas y confirmar en los menús originales.</span></div></div><button id="start" class="plate confirm">INICIAR NZP <span>→</span></button><p class="fine">Descarga inicial ≈ 95 MB · Versión experimental no oficial.<br>NZ:P Team / FTEQW. Créditos y licencias incluidos.</p><div id="boot-status" role="status"></div><progress id="progress" max="100" value="0" hidden></progress></div>
+  </section>
+  <section id="settings" class="sheet" hidden>
+    <div class="settings-card"><header><div><div class="eyebrow">AJUSTE DEL EQUIPO</div><h2>Controles táctiles</h2></div><button id="settings-close" class="tool" aria-label="Cerrar ajustes">✕</button></header><div class="settings-scroll">
+      <label>Sensibilidad al mirar <output id="sensitivity-out"></output><input id="sensitivity" type="range" min="0.35" max="2" step="0.05"></label>
+      <label>Precisión con mira <output id="adsSensitivity-out"></output><input id="adsSensitivity" type="range" min="0.2" max="1" step="0.05"></label>
+      <label>Tamaño de botones <output id="scale-out"></output><input id="scale" type="range" min="0.8" max="1.4" step="0.05"></label>
+      <label>Visibilidad <output id="opacity-out"></output><input id="opacity" type="range" min="0.3" max="1" step="0.05"></label>
+      <label class="switch">Distribución para zurdos<input id="leftHand" type="checkbox"></label>
+      <label class="switch">Invertir mirada vertical<input id="invertY" type="checkbox"></label>
+      <label class="switch">Mira: tocar para activar/desactivar<input id="toggleAds" type="checkbox"></label>
+      <label class="switch">Correr al empujar el joystick hacia delante<input id="autoSprint" type="checkbox"></label>
+      <label class="switch">Vibración breve al pulsar<input id="haptics" type="checkbox"></label>
+      <div class="settings-buttons"><button id="edit-layout" class="plate">MOVER BOTONES</button><button id="reset" class="plate">RESTABLECER</button></div>
+      <p class="fine">USAR y GRANADA se mantienen pulsados. Empuja el joystick hasta arriba para correr; al aflojar o apuntar se envía la orden de parar. CORRER también funciona manteniéndolo. POSTURA cambia la postura original. FUEGO permite mirar mientras disparas. Los ajustes se guardan en este navegador.</p>
+    </div><footer><span id="save-status">Guardado local</span><button id="settings-done" class="plate confirm">LISTO</button></footer></div>
+  </section>
+  <div id="edit-banner" hidden><span>ARRASTRA LOS BOTONES · La partida permanece en el menú</span><button id="edit-done" class="plate confirm">GUARDAR</button></div>
+  <section id="text-entry" class="sheet" hidden><div class="settings-card"><header><h2>Escribir en el menú</h2><button id="text-close" class="tool" aria-label="Cerrar teclado">✕</button></header><p>Primero selecciona un campo de texto del menú original. Esto envía caracteres al campo seleccionado, no reemplaza automáticamente su contenido.</p><input id="text-value" type="text" maxlength="48" placeholder="Nombre o texto" autocomplete="off" aria-label="Texto para el campo del juego"><div class="settings-buttons"><button id="text-backspace" class="plate">BORRAR 1</button><button id="text-send" class="plate confirm">ENVIAR</button></div></div></section>
+  <div id="orientation-hint" hidden>↻ Gira el celular para jugar en horizontal.<button id="orientation-dismiss">Continuar de todos modos</button></div>
+  <div id="toast" role="status" hidden></div>
+  <div id="preview-status" hidden><b>PRUEBA DE CONTROLES · SIN PARTIDA</b><span id="preview-action">El visor bloquea el motor. Aquí puedes probar la distribución y los ajustes.</span></div>
+</main>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-fire" viewBox="0 0 32 32"><circle cx="16" cy="16" r="9"/><circle cx="16" cy="16" r="3"/><path d="M16 2v7m0 14v7M2 16h7m14 0h7"/></symbol>
+<symbol id="i-ads" viewBox="0 0 32 32"><path d="M4 11V4h7m10 0h7v7M4 21v7h7m10 0h7v-7M10 16h12m-6-6v12"/></symbol>
+<symbol id="i-reload" viewBox="0 0 32 32"><path d="M26 13a10 10 0 0 0-18-4L4 13m0-7v7h7M6 19a10 10 0 0 0 18 4l4-4m0 7v-7h-7"/></symbol>
+<symbol id="i-use" viewBox="0 0 32 32"><path d="M9 17V9a2 2 0 0 1 4 0v7-10a2 2 0 0 1 4 0v10-7a2 2 0 0 1 4 0v8-4a2 2 0 0 1 4 0v8l-4 7H12l-7-9a2 2 0 0 1 3-3l5 5"/></symbol>
+<symbol id="i-jump" viewBox="0 0 32 32"><path d="M5 28h22M16 24V5m-8 8 8-8 8 8"/></symbol>
+<symbol id="i-crouch" viewBox="0 0 32 32"><circle cx="18" cy="6" r="3"/><path d="m16 11-5 6 9 3 2 8M16 11l8 4 4-2M11 17l-5 6 6 5"/></symbol>
+<symbol id="i-weapon" viewBox="0 0 32 32"><path d="M4 11h22l2 4H16l-4 10H7l3-10H4zM9 4h15m-3-3 3 3-3 3"/></symbol>
+<symbol id="i-melee" viewBox="0 0 32 32"><path d="m5 27 7-7m-4-4 8 8M12 16 27 3l-4 13-7 4z"/></symbol>
+<symbol id="i-grenade" viewBox="0 0 32 32"><path d="M12 9h10l3 9-4 11H11L7 18zM14 9V4h7l4 6M13 16h9m-10 6h10M17 11v15"/></symbol>
+<symbol id="i-sprint" viewBox="0 0 32 32"><circle cx="21" cy="5" r="3"/><path d="m18 10-5 9 7 3 3 7M13 19l-5 9M18 10l6 7h5M18 10l-8 1-4 6M2 5h9M1 10h5"/></symbol>
+</defs></svg>
+<script src="touch.js"></script>
+</body></html>
