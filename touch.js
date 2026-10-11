@@ -3,7 +3,7 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const defaults = { sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, labels:false, haptics: false, positions: {} };
+  const defaults = { layoutVersion:4, sensitivity: 1, adsSensitivity: .45, scale: 1, opacity: .65, leftHand: false, invertY: false, toggleAds: true, autoSprint:true, labels:false, haptics: false, positions: {} };
   const storageKey = 'nzp-touch-fieldkit-v2';
   let cfg = structuredClone(defaults), canSave = true;
   try {
@@ -14,13 +14,13 @@
         if (Number.isFinite(saved[key])) cfg[key] = Math.max(ranges[key][0],Math.min(ranges[key][1],saved[key]));
       }
       for (const key of ['leftHand','invertY','toggleAds','labels','haptics']) if (typeof saved[key] === 'boolean') cfg[key] = saved[key];
-      if (saved.positions && typeof saved.positions === 'object') for (const [key, value] of Object.entries(saved.positions)) {
+      if (saved.layoutVersion===defaults.layoutVersion && saved.positions && typeof saved.positions === 'object') for (const [key, value] of Object.entries(saved.positions)) {
         if (Array.isArray(value) && value.length === 2 && value.every(v=>Number.isFinite(v)&&v>=0&&v<=1)) cfg.positions[key] = value;
       }
     }
   } catch { canSave = false; }
 
-  const state = {version:'3.1.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
+  const state = {version:'3.2.0',ready:false,started:false,previewOnly:false,mode:'loading',settings:false,editing:false,texting:false,ads:false,sprintRequested:false,autoRun:false,axes:[0,0],movementRoute:'analog',movementKeys:[],resumeAfterSettings:false,commands:[],error:null};
   const buttons = [...document.querySelectorAll('[data-action]')];
   const pointers = new Map(), held = new Map(), menuTimers = new Map();
   const actionIds = {fire:710,ads:711,reload:712,use:713,weapon:714,melee:715,grenade:716};
@@ -139,17 +139,17 @@
     $('knob').style.transform='translate(0px,0px)';
     resetStick();
   }
-  function resetStick() { const el=$('stick');el.style.left=cfg.leftHand?'64%':'36%';el.style.top='59%'; }
+  function resetStick() { const el=$('stick');el.style.left=cfg.leftHand?'56%':'44%';el.style.top='57%'; }
   function apply() {
     document.body.classList.toggle('left-handed',cfg.leftHand);
     document.body.classList.toggle('show-labels',cfg.labels);
     const r=$('stage').getBoundingClientRect();
-    const base=Math.max(56,Math.min(70,r.height/7));
+    const base=Math.max(48,Math.min(64,r.height*.135));
     document.documentElement.style.setProperty('--button-size',(base*cfg.scale)+'px');
     document.documentElement.style.setProperty('--control-opacity',cfg.opacity);
     for(const button of buttons) {
       const a=button.dataset.action, p=cfg.positions[a]||button.dataset.pos.split(',').map(Number);
-      const half=(a==='fire'?base*1.32:base)*cfg.scale/2+10;
+      const half=(a==='ads'?base*1.12:base)*cfg.scale/2+10;
       let x=(cfg.leftHand?1-p[0]:p[0])*r.width,y=p[1]*r.height;
       x=Math.max(half,Math.min(r.width-half,x)); y=Math.max(74,Math.min(r.height-half,y));
       button.style.left=x+'px';button.style.top=y+'px';

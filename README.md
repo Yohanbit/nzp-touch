@@ -4,13 +4,15 @@ Versión web de **Nazi Zombies: Portable** con controles táctiles. Proyecto no 
 
 ## Jugar
 
-**[Abrir el juego · v3.1](https://yohanbit.github.io/nzp-touch/?v=3.1.0&r=7)**
+**[Abrir el juego · v3.2](https://yohanbit.github.io/nzp-touch/?v=3.2.0&layout=4)**
 
 Juega en horizontal. La primera carga descarga unos 100 MB. Toca la pantalla para activar el sonido.
 
 En los menús puedes tocar las opciones o usar las flechas y **✓**. Usa **BACK** para volver.
 
 ## Controles
+
+Botones grises y translúcidos. Disparo con icono de bala en la parte inferior; granada, cuchillo, recarga e interacción en la columna derecha. Esta es la distribución por defecto.
 
 - **Joystick:** moverte, incluidas las diagonales.
 - **Arriba del todo:** activa la carrera automática. Puedes soltar el dedo; toca de nuevo el joystick para detenerte.

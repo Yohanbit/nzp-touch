@@ -8,7 +8,7 @@
   <meta name="google" content="notranslate">
   <title>NZP</title>
   <link rel="icon" href="nzportable.ico">
-  <link rel="stylesheet" href="touch.css?v=3.1.0">
+  <link rel="stylesheet" href="touch.css?v=3.2.0">
 </head>
 <body>
 <main id="stage">
@@ -19,15 +19,15 @@
       <div id="move-zone" aria-label="Joystick: empuja al máximo hacia delante para correr">
         <div id="stick"><div class="sprint-mark"><svg><use href="#i-sprint"/></svg></div><span class="stick-cross"></span><span id="knob"></span></div>
       </div>
-      <button class="control major fire" data-action="fire" data-pos="0.91,0.55" aria-label="Disparar; arrastra para mirar"><svg><use href="#i-fire"/></svg><small>Disparar</small></button>
-      <button class="control" data-action="ads" data-pos="0.79,0.43" aria-label="Apuntar con la mira"><svg><use href="#i-ads"/></svg><small>Mira</small></button>
-      <button class="control" data-action="reload" data-pos="0.92,0.75" aria-label="Recargar"><svg><use href="#i-reload"/></svg><small>Recargar</small></button>
-      <button class="control interact" data-action="use" data-pos="0.58,0.84" aria-label="Mantener para interactuar: comprar, reparar, abrir o activar"><svg><use href="#i-use"/></svg><small>Interactuar</small></button>
+      <button class="control fire" data-action="fire" data-pos="0.683,0.792" aria-label="Disparar; arrastra para mirar"><svg><use href="#i-fire"/></svg><small>Disparar</small></button>
+      <button class="control aim" data-action="ads" data-pos="0.795,0.429" aria-label="Apuntar con la mira"><svg><use href="#i-ads"/></svg><small>Mira</small></button>
+      <button class="control" data-action="reload" data-pos="0.925,0.606" aria-label="Recargar"><svg><use href="#i-reload"/></svg><small>Recargar</small></button>
+      <button class="control interact" data-action="use" data-pos="0.925,0.750" aria-label="Mantener para interactuar: comprar, reparar, abrir o activar"><svg><use href="#i-use"/></svg><small>Interactuar</small></button>
       <button class="control secondary" data-action="jump" data-pos="0.80,0.85" aria-label="Saltar"><svg><use href="#i-jump"/></svg><small>Saltar</small></button>
       <button class="control secondary" data-action="crouch" data-pos="0.80,0.65" aria-label="Cambiar postura"><svg><use href="#i-crouch"/></svg><small>Postura</small></button>
-      <button class="control secondary" data-action="weapon" data-pos="0.69,0.55" aria-label="Cambiar de arma"><svg><use href="#i-weapon"/></svg><small>Arma</small></button>
-      <button class="control secondary" data-action="melee" data-pos="0.68,0.79" aria-label="Ataque cuerpo a cuerpo"><svg><use href="#i-melee"/></svg><small>Cuchillo</small></button>
-      <button class="control secondary grenade" data-action="grenade" data-pos="0.92,0.33" aria-label="Mantener para preparar granada; soltar para lanzar"><svg><use href="#i-grenade"/></svg><small>Granada</small></button>
+      <button class="control secondary" data-action="weapon" data-pos="0.583,0.840" aria-label="Cambiar de arma"><svg><use href="#i-weapon"/></svg><small>Arma</small></button>
+      <button class="control secondary" data-action="melee" data-pos="0.925,0.467" aria-label="Ataque cuerpo a cuerpo"><svg><use href="#i-melee"/></svg><small>Cuchillo</small></button>
+      <button class="control secondary grenade" data-action="grenade" data-pos="0.925,0.327" aria-label="Mantener para preparar granada; soltar para lanzar"><svg><use href="#i-grenade"/></svg><small>Granada</small></button>
     </div>
     <div id="menu-controls" hidden>
       <div id="menu-hit-area" aria-label="Toca las opciones del menú original"></div>
@@ -81,8 +81,8 @@
   <div id="preview-status" hidden><b>Sin partida</b><span id="preview-action">El visor no permite ejecutar el motor.</span></div>
 </main>
 <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg"><defs>
-  <symbol id="i-fire" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="3"/><path d="M16 1v9m0 12v9M1 16h9m12 0h9"/></symbol>
-  <symbol id="i-ads" viewBox="0 0 32 32"><path d="M4 11V4h7m10 0h7v7M4 21v7h7m10 0h7v-7M10 16h12m-6-6v12"/></symbol>
+  <symbol id="i-fire" viewBox="0 0 32 32"><path d="m5 24 14-14 5 5-14 14zM19 10l9-6-4 11M5 24l-2 2 5 5 2-2M8 21l5 5M18 12l5 5"/></symbol>
+  <symbol id="i-ads" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10"/><circle cx="16" cy="16" r="3"/><path d="M16 1v9m0 12v9M1 16h9m12 0h9"/></symbol>
   <symbol id="i-reload" viewBox="0 0 32 32"><path d="m11 5 13 3-5 21-13-3zM14 9l-3 13m7-12-3 13m7-12-3 13M10 2l15 3"/></symbol>
   <symbol id="i-use" viewBox="0 0 32 32"><path d="M9 17V9a2 2 0 0 1 4 0v7-10a2 2 0 0 1 4 0v10-7a2 2 0 0 1 4 0v8-4a2 2 0 0 1 4 0v8l-4 7H12l-7-9a2 2 0 0 1 3-3l5 5"/></symbol>
   <symbol id="i-jump" viewBox="0 0 32 32"><circle cx="21" cy="5" r="2.5"/><path d="m17 10-4 8 6 4 4 7M13 18l-6 7-3-1M17 10l6 5 5-3M17 10l-7-2-4 4M10 29h18"/></symbol>
@@ -101,5 +101,5 @@
   <symbol id="i-fullscreen" viewBox="0 0 32 32"><path d="M4 11V4h7m10 0h7v7M4 21v7h7m10 0h7v-7"/></symbol>
   <symbol id="i-rotate" viewBox="0 0 32 32"><rect x="10" y="5" width="12" height="22" rx="2" transform="rotate(30 16 16)"/><path d="M4 11V4h7m17 17v7h-7"/></symbol>
 </defs></svg>
-<script src="touch.js?v=3.1.0"></script>
+<script src="touch.js?v=3.2.0"></script>
 </body></html>
